@@ -1,6 +1,6 @@
 # Polygenic sex determination in *Astatotilapia burtoni* (Teleostei: Cichlidae)
 
-The custom scripts used in "Polygenic sex determination in Astatotilapia burtoni" are contained here.
+The custom scripts used in "Polygenic sex determination in *Astatotilapia burtoni* (Teleostei: Cichlidae)" are contained here.
 
 1. calculate heterozygosity from vcf
 This script calculates heterozygosity from a .vcf in-file. It outputs both a file containing the heterozygous sites and a summary table of homozygosity, heterozygosity, and the fraction of heterozygous sites in the total. 
