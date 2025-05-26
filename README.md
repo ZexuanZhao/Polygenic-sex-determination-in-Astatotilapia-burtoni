@@ -13,3 +13,7 @@ This script takes the output from `bedtools` windows of windowed heterozygosity 
 ## `normalize_allele_frequency_nonZero.py`
    
 This script takes a `.sync` file from [Popoolation2](https://academic.oup.com/bioinformatics/article/27/24/3435/306737) and normalizes each sex (here, population 1 and population 2) based on the user's calculation of coverage. The output is a corrected `.sync` file, which can be used for downstream analyses. This script is additionally designed so that when dividing, no value >= 1 is changed to zero. 
+
+## `Analysis_GLMM_AburtoniSexDetermination.Rmd`
+
+This R markdown notebook contains annotated code used to carry out GLMM model fitting analysis.
