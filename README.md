@@ -1,4 +1,4 @@
-# Polygenic-sex-determination-in-Astatotilapia-burtoni
+# Polygenic sex determination in *Astatotilapia burtoni* (Teleostei: Cichlidae)
 
 The custom scripts used in "Polygenic sex determination in Astatotilapia burtoni" are contained here.
 
