@@ -1,11 +1,17 @@
 ---
-title: "Sex Determination in Astatotilapia burtoni - Influence of Parentage, Brood Mortality, and Temperature on Sex Ratio"
+title: "Sex Determination in Astatotilapia burtoni - Influence of Parentage, Survivorship, and Temperature on Sex Ratio"
 author: "Coltan G. Parker"
 date: "Report generated `r Sys.Date()`"
 output:
-  html_document:
-   toc: true
-   toc_float: true
+  # html_document:
+  #  toc: true
+  #  toc_float: true
+  pdf_document:
+    toc: true
+    number_sections: true
+    keep_tex: true
+    includes:
+      in_header: wrapcode.tex
 ---
 
 ```{r knitr_settings, include = TRUE}
@@ -15,14 +21,12 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
 ```
 
 
-## Overview
-
-
-
 ## Setup
 
 ### Import Libraries
+
 Import libraries needed in this notebook.
+
 ```{r}
 library(tidyverse)
 library(readxl)
@@ -35,12 +39,14 @@ library(MuMIn)
 ```
 
 ### Import Data
-Import main data table, add a column for the brood's ID value, and make new columns for the 'centered' temperature and survival values (subtract the mean from all column entries, so the new mean is 0). Centered values support glmm fitting.
+
+Import main data table, add a column for the brood's ID value, and make new columns for the 'centered' temperature and survival values (subtract the mean from all column entries, so the new mean is 0). Centered values support model fitting.
+
 ```{r}
 # Import Data
 data_init <- read_xlsx("./Data_for_burtoni_sex.xlsx", sheet = 2)
 
-# Add Brood ID
+# Add Brood ID column
 data_init <- data_init %>%
   mutate(Brood = paste(Sire, Dam, sep =))
 
@@ -58,7 +64,9 @@ data_init <- data_init %>%
 ## Initial Inspection of Data
 
 ### Plotting Sex Ratio x Temperature x Survival Rate
-The goal is to predict Sex Ratio based on: Temperature, Survival Rate, Dam, and Sire. To get a sense of how the three continuous variables covary with one another, we can view scatterplots for all pairs of these three variables. The variable that is not on either axis is used to color the dots.
+
+The goal is to predict Sex Ratio based on: Temperature, Survival Rate, Dam, and Sire. To get a sense of how the factors vary with one another, we view scatterplots of Sex Ratio, Temperature, and Survival below. The variable that is not on either axis is used to color the dots.
+
 ```{r, fig.height = 6, fig.width = 8}
 # Sex Ratio by Temperature with Survival Rate Colored
 ggplot(data_init, aes(x = Temp_10DayMeanPostTransfer, y = SexRatio, size = TotalCount, color = SurvivalRate)) +
@@ -104,17 +112,10 @@ ggplot(data_init, aes(x = Temp_10DayMeanPostTransfer, y = SurvivalRate, size = T
 
 ```
 
-### Correlations among Sex Ratio x Temperature x Survival Rate
-Along with the above scatterplots it can be useful to quantify the degree of correlation for each pair of variables, here with a Pearson's correlation. 
-```{r}
-cor.test(data_init$SexRatio, data_init$Temp_10DayMeanPostTransfer, use = "complete.obs", method = "pearson")
-cor.test(data_init$SexRatio, data_init$SurvivalRate, use = "complete.obs", method = "pearson")
-cor.test(data_init$SurvivalRate, data_init$Temp_10DayMeanPostTransfer, use = "complete.obs", method = "pearson")
-
-```
-
 ### Plotting Sex Ratio by Temperature or Survival, Colored by Sire
-We hope to identify the contribution of Dam and Sire to Sex Ratio. There are too many Dams in the study (20) to apply a different color to each and distinguish them, but there are few enough Sires (8) that we can color-code datapoints by Sire and see how it is distributed on some of these scatterplots. Here we view only those scatterplots that are showing Sex Ratio (because this is our response variable) as a function of either Temperature or Survival, color-coding dots by Sire. 
+
+We hope to identify the contribution of Dam and Sire to Sex Ratio. There are too many Dams in the study (20) to apply a different color to each and distinguish them, but there are few enough Sires (8) that we can color-code datapoints by Sire and see how it is distributed on some of these scatterplots. Here we view only those scatterplots that are showing Sex Ratio (because this is our response variable) as a function of either Temperature or Survival, color-coding dots by Sire.
+
 ```{r, fig.height = 6, fig.width = 8}
 # Sex Ratio by Temperature or Survival Rate, Colored by Sire
 # plot_scatter_sexratiobytemp <-
@@ -150,7 +151,9 @@ We hope to identify the contribution of Dam and Sire to Sex Ratio. There are too
 ```
 
 ### Plotting Sex Ratio by Temperature or Survival, Colored by Sire and Subdivided by Dam
+
 As noted above, it is not practical to color-code by Dam because there are so many that colors become difficult to distinguish. Instead we can subdivide (facet) the plot by Dam so that there is a small panel dedicated to each. Here we subdivide both of the scatterplots shown above color-coding by Sire with facets for Dam.
+
 ```{r, fig.height = 6, fig.width = 8}
 # Sex Ratio by Temperature or Survival Rate, Colored by Sire, Subdivided by Dam
 # plot_scatter_sexratiobytemp <-
@@ -191,7 +194,9 @@ As noted above, it is not practical to color-code by Dam because there are so ma
 ## Initial GLMM Analysis on Full Data
 
 ### Specifying Models
-Models are all treating Sex Ratio as a binomial response (# Males / # Males + Females) as a function of some combination of Temperature, Survival Rate, Dam, and Sire. Temperature and Survival Rate are treated as fixed factors and Dam and Sire are treated as random factors. Here the models are specified, then below the models are compared to one another.
+
+Models are treating Sex Ratio as a binomial response (# Males / # Males + Females) as a function of some combination of Temperature, Survival Rate, Dam, and Sire. Temperature and Survival Rate are treated as fixed effects and Dam and Sire are treated as random effects Here the models are specified, then below the models are compared to one another on AIC ranking.
+
 ```{r}
 # Model A: Full Model (Temp + Survival + Dam + Sire)
 modelA <- glmer(cbind(MalesCount, FemalesCount) ~ TempCentered + SurvivalCentered + (1 | Dam) + (1 | Sire), data = data_init, family = binomial)
@@ -214,7 +219,9 @@ modelF <- glmer(cbind(MalesCount, FemalesCount) ~ (1 | Dam) + (1 | Sire), data =
 ```
 
 ### Ranking Models and Assessing Contribution of Fixed Factors
-First we compare the above models on AIC (Akaike Information Criterion) value. AIC estimates the information lost in each model - less information loss, better model, within reason. A difference of a few points is within a margin of error.
+
+Ranking models on AIC (Akaike Information Criterion) value. AIC estimates the information lost in each model - less information loss, better model. A difference of a couple points is within a margin of error.
+
 ```{r}
 # Quick AIC comparison and model ranking
 models <- list(modelA, modelB, modelC, modelD, modelE, modelF)
@@ -222,11 +229,12 @@ AICtab(models, base = TRUE)  # from bbmle package
 
 ```
 
-Model B (Model without Temperature (Survival + Dam + Sire)) ranks highest by AIC, followed very closely by Models A, F, and C in that order. These AIC values are close enough that these models are largely comparable in minimizing information loss.
+Model B (Model without Temperature (Survival + Dam + Sire)) ranks highest by AIC, followed very closely by Models A, F, and C in that order. These AIC values are close enough that these models should be treated as largely comparable.
 
-This indicates that adding or removing Temperature or Survival Rate (or both) from the model has little effect on model performance. In fact, the third best model, Model F with 288.1 AIC compared to Model B's 286.6 AIC, was the model with only Dam + Sire. Removing Dam or Sire from any model, on the other hand, leads to a large hit to model fit, indicating they are important and capture a good bit of variation.
+This indicates that adding or removing Temperature or Survival Rate (or both) from the model has little effect on model performance. In fact, the third best model, Model F with 288.1 AIC compared to Model B's 286.6 AIC, was the simplest model with only Dam + Sire. Removing Dam or Sire from any model leads to a large hit to model fit, indicating both Dam and Sire are important factors.
 
-Before moving on the Model Summary from Model A (the Full Model) will be saved.
+Next print and save the statistics associated with Model A (the Full Model) and Model B (the best model according to AIC rank). Given this and the above ranking of Model B above all else, it is fair to conclude that Temperature is dispensible. Survivorship as a factor requires further consideration
+
 ```{r}
 summary_modelA <- summary(modelA)
 summary_modelA
@@ -235,7 +243,6 @@ capture.output(summary_modelA, file = "Summary_GLMM_SexRatio-TempSurvivalDamSire
 
 ```
 
-Given this and the above ranking of Model B above all else, it is fair to conclude that Temperature is dispensible. This warrants looking closer at the summary table for Model B, which omits Temperature and keeps Survival, Dam, and Sire.
 ```{r}
 summary_modelB <- summary(modelB)
 summary_modelB
@@ -244,7 +251,7 @@ capture.output(summary_modelB, file = "Summary_GLMM_SexRatio-SurvivalDamSire_All
 
 ```
 
-Survival Rate may be a source of error. Some broods had quite poor Survival Rate, which may mean that their recorded sex ratio may not necessarily reflect the true sex ratio of that brood. Mortality may be unequal between the sexes (for example, male-male conflict may be a source of mortality and deflate male counts in some broods). In this way mortality may indeed be a predictor of sex, and thus we may not be surprised to find survival rate predicting sex ratio in our model.
+Survival Rate may not be a useful predictor in our data, and in fact may be a source of error. Some broods had poor Survival Rate, which may mean that their recorded sex ratio does not necessarily reflect the true sex ratio of that brood. Mortality may be unequal between the sexes (for example, male-male conflict may be a source of mortality and deflate male counts in some broods).
 
 For these reasons it is reasonable to re-compute these models after filtering out observations that had poor survival (here defined as Survival < Mean - SD).
 
@@ -252,7 +259,9 @@ For these reasons it is reasonable to re-compute these models after filtering ou
 ## Filtering Out Low-Survival Broods and Re-Analyzing GLMMs
 
 ### Calculating and Plotting Mean - SD for Survival
+
 To identify which broods will be removed we will use a threshold of Survival < Mean - SD, in other words any brood with a survival rate more than one standard deviation below the mean will be removed for excessively low survival. In these data, the mean survival rate was ~83.4% and SD was ~16%, so the threshold value is 83.4 - 16 = 67.4% (see below for precise values and a plot showing where the threshold falls on a frequency histogram of survival rates).
+
 ```{r}
 survival_mean <- mean(data_init$SurvivalRate)
 survival_sd <- sd(data_init$SurvivalRate)
@@ -274,7 +283,9 @@ ggplot(data_init, aes(x = SurvivalRate)) +
 This will remove n=6 broods of n=39 total, leaving a final n=33 broods. 
 
 ### Filtering
+
 Application of threshold to filter low-survival broods.
+
 ```{r}
 data_filtered <- data_init %>%
   filter(SurvivalRate > survival_mean_less_sd)
@@ -282,7 +293,9 @@ data_filtered <- data_init %>%
 ```
 
 ### Re-Specify Models on New Filtered Data and Rank by AIC
+
 Now that low-survival broods have been removed we will use the filtered data to re-specify those same models that were looked at above and compare them as before. We are looking to see whether there is still an effect of Survival Rate, whether there is still no effect of Temperature, and to see that there are still effects of Dam and Sire.
+
 ```{r}
 # Model A: Full Model (Temp + Survival + Dam + Sire)
 modelA <- glmer(cbind(MalesCount, FemalesCount) ~ TempCentered + SurvivalCentered + (1 | Dam) + (1 | Sire), data = data_filtered, family = binomial)
@@ -313,7 +326,7 @@ AICtab(models, base = TRUE)  # from bbmle package
 
 In these updated rankings Model F, the simplest model including just Dam and Sire, is ranked best by AIC. This is followed very closely by Models B, C, and A, which all include Dam and Sire as well as one or both of Temperature and/or Survival, which do not appear to add much value to the model take much away.
 
-Next, saving updated Model A (Full Model), Model B (Model with Survival + Dam + Sire), and Model F (Best-Fit Model, just Dam + Sire) outputs before moving on. These model summaries make it clear that Survival Rate is no longer a significant factor and can be disposed of in favor of the best-fit model (Model F).
+Next we print and save the updated details about Model A (Full Model), Model B (Model with Survival + Dam + Sire), and Model F (Best-Fit Model, just Dam + Sire). These model summaries make it clear that Survival Rate is no longer a significant factor and can be removed in favor of the best-fit model (Model F).
 
 ```{r}
 summary_modelA <- summary(modelA)
@@ -340,7 +353,9 @@ capture.output(summary_modelF, file = "Summary_GLMM_SexRatio-DamSire_FilteredDat
 ```
 
 ### Pairwise Comparing New Models Hierarchically to Evaluate Contribution of Each Factor
-To complete this comparison of models we will compare models pairwise to confirm that Model F is indeed the simplest best-fit model. First, a set of comparisons between all models to the Full Model (Model A) to test what is the simplest model that contains no unnecessary (non-significant) factors. This set of comparisons again points to Model F (Dam + Sire) as the best fit. Second, a set of comparisons between Model F and models containing only Dam or only Sire, to confirm in that final model the contribution of both. Indeed, both Dam and Sire are necessary in Model F.
+
+To complete this comparison of models we will compare models pairwise to confirm that Model F is indeed the simplest best-fit model and to further evaluate the contribution of each factor. First, a set of comparisons between all models to the Full Model (Model A) to test what is the simplest model that contains no unnecessary (non-significant) factors. This set of comparisons again points to Model F (Dam + Sire) as the best fit. Second, a set of comparisons between Model F and models containing only Dam or only Sire, to evaluate the contribution of Dam and Sire to this final model.
+
 ```{r}
 # Comparing Full Model to Models Missing Either Temperature or Survival Rate or Both
 anova(modelA, modelB) # No Significant Difference
@@ -364,7 +379,9 @@ anova(modelF, modelH) # Significant Difference
 ## Assessing Model Fit, Proportion of Variance Captured by Factors, and Estimated Effects of each Dam and Sire
 
 ### Visualizing Model Fit, Modeled vs. Observed
-To assess how tightly the model fits our data we can plot the predicted vs. observed values. We can do this with the values in terms of Logit (raw output from binomial glmm) or Sex Ratio probability. Below we view the values in Logit terms first then in Sex Ratio probability. Both are fairly tight indicating a good model fit and little unexplained variance.
+
+To assess how tightly the model fits our data we can plot the predicted vs. observed values. We can do this with the values in logistic terms (raw output from binomial glmm with logit link) or in terms of Sex Ratio probability. Below we view the values in Logit terms first then in Sex Ratio probability. Both are fairly tight supporting a good model fit.
+
 ```{r, fig.height = 6, fig.width = 6}
 # Plotting Observed vs. Predicted in logistic terms
 data_filtered$pred_logit <- predict(modelF, type = "link") # Type = Link to pull out logit link function value instead of final response value
@@ -374,9 +391,9 @@ ggplot(data_filtered, aes(x = pred_logit, y = obs_logit)) +
   geom_point() +
   geom_abline(slope = 1, intercept = 0, linetype = "dashed") +
   labs(
-    title = "GLMM Modeled vs. Actual (Logit Scale)",
-    x = "Predicted Logit",
-    y = "Observed Logit"
+    title = "GLMM Modeled vs. Actual (Log Odds Scale)",
+    x = "Predicted Log Odds",
+    y = "Observed Log Odds"
   ) +
   theme_minimal()
 
@@ -396,7 +413,9 @@ ggplot(data_filtered, aes(x = pred_glmer, y = SexRatio)) +
 ```
 
 ### Estimated Effect of each Dam and Sire on Sex Ratio
+
 The model provides a global mean value for Sex Ratio as well as intercepts for each Dam and Sire which can be used to estimate the expected Sex Ratio associated with each Dam or Sire (all else being equal). The global intercept is added to each Dam or Sire's random intercept to return an adjusted intercept value, which can then be converted from log-odds units to Sex Ratio probability to facilitate interpretation. Below we calculate these adjusted intercept values and plot them both in terms of log-odds and Sex Ratio. In the plots the vertical dashed line is the Global Mean.
+
 ```{r}
 # Pull out global intercept (average log-odds of male offspring across all broods)
 summary_modelF$coefficients
@@ -433,7 +452,7 @@ write_csv(effects_dam, "Summary_EffectBySire.csv")
 ```
 
 ```{r, fig.height = 8, fig.width = 8}
-# Plotting Random Intercept by Dam and Sire
+# Plotting Log Odds by Dam and Sire
 plot_logodds_dam <- 
   ggplot(effects_dam, aes(x = reorder(Dam, Intercept), y = Intercept)) +
   geom_point(size = 3, color = "darkred") +
@@ -486,13 +505,20 @@ plot_prob_dam + plot_prob_sire + plot_layout(ncol = 1, heights = c(2.5, 1))
 ```
 
 ### Variance Captured by Factors Dam and Sire
-Estimating the variance captured by random factors in a binomial glmm requires some additional computation (see Nakagawa & Schielzeth 2012 https://doi.org/10.1111/j.2041-210x.2012.00261.x, and 2017 https://doi.org/10.1098/rsif.2017.0213). This can be accomplished with package MuMIn, which returns the proportion of variance captured by all random factors. We can then estimate the amount of variance attributed to Dam and Sire respectively by dividing the variance attributed to random factors by MuMIn to match the relative proportions of variance associated with Dam and Sire in our model output.
+
+Estimating the variance captured by random factors in a binomial glmm following (Nakagawa & Schielzeth 2012 https://doi.org/10.1111/j.2041-210x.2012.00261.x, and 2017 https://doi.org/10.1098/rsif.2017.0213). This can be accomplished with package MuMIn, which returns the proportion of variance captured by all random factors. Given the only random factors in our model are Dam and Sire, we can estimate the amount of variance attributed to Dam and Sire respectively by dividing the total variance attributed to random factors by MuMIn to match the relative proportions of variance associated with Dam and Sire in our model output.
+
 ```{r}
 # Proportion of variance attributed to random factors
 r.squaredGLMM(modelF) # Use the 'theoretical' value from 2012 paper (delta is from 2017 paper?)
 rsquared <- r.squaredGLMM(modelF)["theoretical", "R2c"] # Rsquared percent variation
 rsquared
 
+```
+
+The above rsquared value (0.9603282) is the total variance captured by random factors in the model. To estimate contribution of Dam and Sire together (assuming additive contribution) this value is divided below.
+
+```{r}
 # Calculate proportion of variance 
 variance <- as_tibble(summary_modelF$varcor)
 variance # Column 'vcov' is the variance in log-odds
@@ -507,8 +533,14 @@ variance
 
 variance$rsquared_proportion
 
+```
+
+In the above table we first pull out the variance values associated with each Dam and Sire in the model output, which captures the relative ratio of variance associated with each factor (slightly higher value for Sire compared to Dam). These values are then each divided by their sum to generate the proportions associated with each factor, then the rsquared value above (0.9603282) is multiplied by each of those proportion values to divide it equally according to proportion. The final values (0.4734520 and 0.4868762) are the estimated rsquared values associated with Dam and Sire respectively.
+
+Finally, this results table is saved below.
+
+```{r}
 # Save results
 write_csv(variance, "Summary_VarianceCaptured_DamSire.csv")
 
 ```
-
